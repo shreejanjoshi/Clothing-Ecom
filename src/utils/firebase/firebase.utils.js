@@ -5,6 +5,7 @@ import {
   signInWithRedirect,
   signInWithPopup,
   GoogleAuthProvider,
+  createUserWithEmailAndPassword,
 } from "firebase/auth";
 import { getFirestore, doc, getDoc, setDoc } from "firebase/firestore";
 
@@ -22,54 +23,71 @@ const firebaseConfig = {
 const firebaseApp = initializeApp(firebaseConfig);
 
 // to use google auth .. it is class .. different provider
-const provider = new GoogleAuthProvider();
+const googleProvider = new GoogleAuthProvider();
 // take confi obj and we can tell the different way this google auth to behave
-provider.setCustomParameters({
+googleProvider.setCustomParameters({
   prompt: "select_account",
 });
 
 // must be same always
 export const auth = getAuth();
-export const signInWithGooglePopup = () => signInWithPopup(auth, provider);
+export const signInWithGooglePopup = () =>
+  signInWithPopup(auth, googleProvider);
+export const signInWithGoogleRedirect = () =>
+  signInWithRedirect(auth, googleProvider);
 
 // db
 export const db = getFirestore();
 
-export const createUserDocumentFromAuth = async (userAuth) => {
-    // take that data and stote u-in firestore
-    // nedd to see extisting doc refferences
-    // 3 argument db, collections, identofierer (uqnik id)
-    const userDocRef = doc(db, 'users', userAuth.uid);
+export const createUserDocumentFromAuth = async (
+  userAuth,
+  // default value overwrite the null displayName value
+  additionalInfomation = {}
+) => {
+  if (!userAuth) return;
 
-    console.log(userDocRef);
+  // take that data and stote u-in firestore
+  // nedd to see extisting doc refferences
+  // 3 argument db, collections, identofierer (uqnik id)
+  const userDocRef = doc(db, "users", userAuth.uid);
 
-    // must be done in async
-    const userSnapshot = await getDoc(userDocRef);
-    console.log(userSnapshot);
+  console.log(userDocRef);
 
-    // if user data snapshot dont exits
-    // create / set doc with the data from userAuth in my collection
-    // bangoperator
-    if(!userSnapshot.exists()){
-        // field on this obj like uid
-        const { displayName, email } = userAuth;
-        const createdAt = new Date();
+  // must be done in async
+  const userSnapshot = await getDoc(userDocRef);
+  console.log(userSnapshot);
 
-        try{
-            // pass userDocRef and data
-            await setDoc(userDocRef, {
-                displayName,
-                email,
-                createdAt
-            });
-        }catch(error){
-            console.log('error creating the user', error.message);
-        }
+  // if user data snapshot dont exits
+  // create / set doc with the data from userAuth in my collection
+  // bangoperator
+  if (!userSnapshot.exists()) {
+    // field on this obj like uid
+    const { displayName, email } = userAuth;
+    const createdAt = new Date();
+
+    try {
+      // pass userDocRef and data
+      await setDoc(userDocRef, {
+        displayName,
+        email,
+        createdAt,
+        ...additionalInfomation,
+      });
+    } catch (error) {
+      console.log("error creating the user", error.message);
     }
+  }
 
-    // if user data exits
+  // if user data exits
 
-    return userDocRef;
+  return userDocRef;
 
-    // return uersDocRef
-}
+  // return uersDocRef
+};
+
+export const createAuthUserWithEmailAndPassword = async (email, password) => {
+  //dont get email and password then just return
+  if (!email || !password) return;
+
+  return await createUserWithEmailAndPassword(auth, email, password);
+};
